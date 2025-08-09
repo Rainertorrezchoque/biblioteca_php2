@@ -4,39 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard de Bibliotecario - Automatizado</title>
-    <!-- Tailwind CSS CDN -->
+ 
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome CDN para iconos -->
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Firebase SDK -->
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, query, where, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Variables globales del entorno
+
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : '';
 
-        // Inicializar Firebase
+        
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
         let currentUserId = '';
 
-        // Autenticación de usuario
+        
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUserId = user.uid;
-                // Mostrar el ID del usuario en el UI
+                
                 const userIdDisplay = document.getElementById('user-id-display');
                 if (userIdDisplay) {
                     userIdDisplay.textContent = `ID de Sesión: ${currentUserId}`;
                 }
                 console.log("Usuario autenticado:", currentUserId);
-                // Iniciar la escucha de datos de Firestore
+                
                 startFirestoreListeners();
             } else {
                 console.log("Usuario no autenticado, intentando iniciar sesión...");
@@ -86,7 +86,7 @@
             });
         }
 
-        // Función para actualizar las métricas clave
+        
         function updateMetrics(loans) {
             const activeLoans = loans.length;
             const overdueLoans = loans.filter(loan => {
@@ -99,7 +99,7 @@
             document.getElementById('metric-overdue').textContent = overdueLoans;
         }
 
-        // Escuchar cambios en la base de datos de Firestore
+        
         function startFirestoreListeners() {
             const loansQuery = collection(db, loansCollectionPath);
             onSnapshot(loansQuery, (snapshot) => {
@@ -113,7 +113,7 @@
             });
         }
 
-        // Función para mostrar mensajes en una caja de notificaciones
+        
         function showMessage(message, type) {
             const container = document.getElementById('message-container');
             container.innerHTML = `<div class="message-box ${type}"><i class="fas fa-info-circle mr-2"></i>${message}</div>`;
@@ -150,7 +150,7 @@
             }
         };
 
-        // Lógica para registrar un nuevo préstamo
+        // Lógica para registrar un nuevo prestamo
         document.getElementById('checkout-form').addEventListener('submit', async function(event) {
             event.preventDefault();
             const userDui = document.getElementById('user_dui').value;
@@ -161,14 +161,14 @@
                 return;
             }
 
-            // Simular búsqueda de libro y usuario (en un entorno real esto sería una consulta)
+            // Simular búsqueda de libro y usuario 
             const today = new Date().toISOString().slice(0, 10);
             const returnDate = new Date();
             returnDate.setDate(returnDate.getDate() + 15);
             const returnDateString = returnDate.toISOString().slice(0, 10);
 
             try {
-                // Añadir el documento a Firestore
+                
                 await addDoc(collection(db, loansCollectionPath), {
                     user: 'Ana Pérez', // Nombre simulado
                     userDui: userDui,
@@ -193,7 +193,7 @@
             }
         });
 
-        // Lógica para registrar una devolución
+        // Lógica para registrar una devolución (aun falta definir)
         document.getElementById('return-form').addEventListener('submit', async function(event) {
             event.preventDefault();
             const returnCode = document.getElementById('return_code').value;
@@ -203,7 +203,7 @@
                 return;
             }
 
-            // Buscar el préstamo activo en la base de datos
+            // buscar prestamo ( aun falta definir)
             const loanToReturn = allLoans.find(loan => loan.bookCode === returnCode);
 
             if (loanToReturn) {
@@ -220,7 +220,7 @@
             }
         });
         
-        // Lógica para la búsqueda en la tabla
+        // búsqueda en la tabla
         document.getElementById('search-query').addEventListener('input', function(event) {
             const query = event.target.value.toLowerCase();
             const filteredLoans = allLoans.filter(loan =>

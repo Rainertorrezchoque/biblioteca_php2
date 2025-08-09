@@ -44,19 +44,19 @@
     
     session_start();
 
-    // Redirige al login si el usuario 
+    
     if (!isset($_SESSION['user_id'])) {
         header('Location: /login_biblioteca/login.php');
         exit();
     }
 
-    // --- CONFIGURACIÓN DE LA BASE DE DATOS ---
+    
     $dbHost = 'localhost';
     $dbName = 'biblioteca1';
     $dbUser = 'root';
     $dbPass = '';
 
-    // --- CONEXIÓN A LA BASE DE DATOS (PDO) ---
+    
     $pdo = null;
     try {
         $pdo = new PDO("mysql:host=$dbHost;dbname=$dbName;charset=utf8mb4", $dbUser, $dbPass);
@@ -66,7 +66,7 @@
         die("<div class='text-center text-red-500'>Error de conexión a la base de datos: " . $e->getMessage() . "</div>");
     }
 
-    // datos usuario desde la base de datos
+    // datos usuario
     $user = null;
     if (isset($_SESSION['user_id'])) {
         try {
@@ -88,7 +88,7 @@
 
 
 
-    // Si el usuario es Administrador redirige a admin_dashboard.php
+    // Sidentificador (rainer)
     if ($user['type'] == 0) {
         header('Location: /login_biblioteca/admin_dashboard.php');
         exit(); 
@@ -98,7 +98,7 @@
         exit(); 
     }
 
-    // (basado en tu esquema TINYINT)
+    // (roles)
     $userTypes = [
         0 => 'Administrador',
         1 => 'Bibliotecario',
@@ -165,7 +165,7 @@
                 <a href="#" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
                     Mis Reservas
                 </a>
-                <?php if ($user['type'] == 0): // Solo para Administradores ?>
+                <?php if ($user['type'] == 0): // Solo para administradores (rainer o noelia) ?>
                 <a href="#" class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
                     Panel de Administración
                 </a>

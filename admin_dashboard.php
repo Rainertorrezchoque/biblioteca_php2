@@ -64,19 +64,19 @@
     <?php
     session_start();
 
-    // Redirige al login si el usuario no está autenticado
+    
     if (!isset($_SESSION['user_id'])) {
         header('Location: /login_biblioteca/login.php');
         exit();
     }
 
-    // --- CONFIGURACIÓN DE LA BASE DE DATOS ---
+    // BASE DE DATOS
     $dbHost = 'localhost';
     $dbName = 'biblioteca1';
     $dbUser = 'root';
     $dbPass = '';
 
-    // --- CONEXIÓN A LA BASE DE DATOS ---
+   
     $pdo = null;
     try {
         $pdo = new PDO("mysql:host=$dbHost;dbname=$dbName;charset=utf8mb4", $dbUser, $dbPass);
@@ -86,7 +86,7 @@
         die("<div class='text-center text-red-500'>Error de conexión a la base de datos: " . $e->getMessage() . "</div>");
     }
 
-    // Obtener los datos completos del usuario desde la base de datos
+    // Obtener los datos del usuario (relizado x noelia) 
     $user = null;
     if (isset($_SESSION['user_id'])) {
         try {
@@ -100,13 +100,13 @@
         }
     }
 
-    // Si por alguna razón el usuario no se encontró o no es administrador, redirigir
+    
     if (!$user || $user['type'] != 0) {
         header('Location: /login_biblioteca/login.php');
         exit();
     }
 
-    // Mapeo (basado en tu esquema TINYINT)
+    // Mapeo (roles) trabajado por rainer
     $userTypes = [
         0 => 'Administrador',
         1 => 'Bibliotecario',
@@ -199,7 +199,7 @@
         <p>&copy; <?php echo date('Y'); ?> Biblioteca Todos los derechos reservados.</p>
     </footer>
 
-    <!-- Incluir el script de JavaScript para manejar la interactividad -->
+    
     <script src="admin_dashboard.js"></script>
 
 </body>

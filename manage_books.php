@@ -161,13 +161,13 @@
         }
     }
 
-    // Si el usuario no es administrador (0) o bibliotecario (1), redirigir
+    
     if (!$currentUser || ($currentUser['type'] != 0 && $currentUser['type'] != 1)) {
         header('Location: /login_biblioteca/dashboard.php');
         exit();
     }
 
-    // Mapeo de estados de libros (ajustado a tu columna 'status' en la tabla books)
+    // estados de libros (noelia)
     $statusMap = [
         0 => 'Disponible',
         1 => 'Prestado',
@@ -175,12 +175,12 @@
         3 => 'Mantenimiento'
     ];
 
-    // Variables para mensajes y datos del libro a editar
+    
     $message = '';
     $messageType = '';
     $editingBook = null;
 
-    // --- LÓGICA DE PROCESAMIENTO DE ACCIONES (Crear, Editar, Eliminar) ---
+    // --- para crear editar eliminar x noelia ---
 
     // 1. Manejar eliminación de libro
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_book') {
@@ -208,7 +208,7 @@
         exit();
     }
 
-    // 2. Manejar carga de datos para edición (GET)
+    //  Manejar carga de dato
     if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'edit') {
         $bookIdToEdit = $_GET['id'] ?? null;
         if ($bookIdToEdit && is_numeric($bookIdToEdit)) {
@@ -231,7 +231,7 @@
         }
     }
 
-    // 3. Manejar el envío del formulario de edición (POST)
+    //  Manejar el envío del formulario de edicion
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_book') {
         $bookId = $_POST['book_id'] ?? null;
         $code = trim($_POST['code'] ?? '');
@@ -298,7 +298,7 @@
         }
     }
 
-    // 4. Manejar el envío del formulario de creación (POST)
+    //  manejar el envio del formulario de creación 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create_book' && !$editingBook) {
         $code = trim($_POST['code'] ?? '');
         $title = trim($_POST['title'] ?? '');
@@ -344,7 +344,7 @@
                     if ($success) {
                         $message = '¡Libro creado exitosamente!';
                         $messageType = 'success';
-                        // Redireccionamos para evitar el reenvío del formulario y limpiar los campos
+                        // reenvio del formulario y limpiar los campos
                         header('Location: /login_biblioteca/manage_books.php?msg=' . urlencode($message) . '&type=' . $messageType);
                         exit();
                     } else {
@@ -365,7 +365,7 @@
         $messageType = htmlspecialchars($_GET['type']);
     }
 
-    // --- OBTENER DATOS PARA LOS DESPLEGABLES ---
+    
     $categories = [];
     $publishers = [];
     try {
@@ -378,10 +378,10 @@
     }
 
 
-    // --- LÓGICA PARA LISTAR LIBROS ---
+    
     $books = [];
     try {
-        // Consulta corregida para incluir todos los campos solicitados y ordenar por 'code'
+        // ordenar por 'code' rainer
         $sql = "SELECT b.id, b.code, b.title, b.edition, b.isbn, b.publication_year, b.total_copies, b.location, b.status, c.name AS category_name, p.name AS publisher_name FROM books b LEFT JOIN categories c ON b.category_id = c.id LEFT JOIN publishers p ON b.publisher_id = p.id ORDER BY b.code ASC";
         $stmt = $pdo->query($sql);
         $books = $stmt->fetchAll();
@@ -418,7 +418,7 @@
             <p class="message <?php echo $messageType === 'error' ? 'error-message' : 'success-message'; ?> mb-6"><?php echo $message; ?></p>
         <?php endif; ?>
 
-        <!-- Sección para Crear/Editar Libro -->
+        <!--  para Crear/Editar Libro -->
         <div class="mb-8 p-6 border border-gray-200 rounded-lg bg-gray-50">
             <h2 class="text-2xl font-semibold text-gray-800 mb-4">
                 <?php echo $editingBook ? 'Editar Libro' : 'Crear Nuevo Libro'; ?>

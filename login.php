@@ -46,14 +46,14 @@
     
     session_start();
 
-    // --- CONFIGURACIÓN DE LA BASE DE DATOS ---
+   
     
     $dbHost = 'localhost'; 
     $dbName = 'biblioteca1'; 
     $dbUser = 'root';      
     $dbPass = '';         
 
-    // --- CONEXIÓN A LA BASE DE DATOS  ---
+    
     $pdo = null; 
     try {
         $pdo = new PDO("mysql:host=$dbHost;dbname=$dbName;charset=utf8mb4", $dbUser, $dbPass);
@@ -121,7 +121,7 @@
                 $_SESSION['user_name'] = $user['name'];
                 $_SESSION['user_type'] = $user['type']; 
 
-                // Redirigir al usuario a una página de bienvenida
+                // Redirigir al usuario
                 header('Location: dashboard.php'); 
                 exit();
             } else {
