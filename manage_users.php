@@ -1,27 +1,31 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Administrar Usuarios - Biblioteca</title>
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
+
     <style>
-        
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f0f2f5;
         }
+
         .container-card {
             background-color: #ffffff;
             border-radius: 1rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
         }
+
         .input-field {
             border-radius: 0.5rem;
             border: 1px solid #d1d5db;
             padding: 0.75rem 1rem;
         }
+
         .submit-button {
             background-color: #4f46e5;
             color: white;
@@ -30,9 +34,20 @@
             font-weight: 600;
             transition: background-color 0.3s ease;
         }
+        .logout-button {
+            background-color: #ef4444;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+        }
+        
+
         .submit-button:hover {
             background-color: #4338ca;
         }
+
         .message {
             font-size: 0.875rem;
             margin-top: 0.5rem;
@@ -40,34 +55,42 @@
             border-radius: 0.5rem;
             text-align: center;
         }
+
         .error-message {
             color: #ef4444;
             background-color: #fef2f2;
             border: 1px solid #fecaca;
         }
+
         .success-message {
             color: #10b981;
             background-color: #ecfdf5;
             border: 1px solid #a7f3d0;
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 1.5rem;
         }
-        th, td {
+
+        th,
+        td {
             padding: 0.75rem;
             text-align: left;
             border-bottom: 1px solid #e2e8f0;
         }
+
         th {
             background-color: #f1f5f9;
             font-weight: 600;
             color: #334155;
         }
+
         tr:hover {
             background-color: #f8fafc;
         }
+
         .action-button {
             padding: 0.3rem 0.6rem;
             border-radius: 0.375rem;
@@ -76,20 +99,26 @@
             color: white;
             transition: background-color 0.2s ease;
         }
+
         .edit-button {
-            background-color: #3b82f6; /* Blue */
+            background-color: #3b82f6;
         }
+
         .edit-button:hover {
             background-color: #2563eb;
         }
+
         .delete-button {
-            background-color: #ef4444; /* Red */
+            background-color: #ef4444;
+            /* Red */
         }
+
         .delete-button:hover {
             background-color: #dc2626;
         }
     </style>
 </head>
+
 <body class="flex flex-col items-center min-h-screen py-8">
 
     <?php
@@ -133,7 +162,7 @@
 
     // Si el usuario no es administrador, redirigir
     if (!$currentUser || $currentUser['type'] != 0) {
-        header('Location: /login_biblioteca/dashboard.php'); 
+        header('Location: /login_biblioteca/dashboard.php');
         exit();
     }
 
@@ -144,7 +173,8 @@
      * @param string $password La contraseña en texto plano.
      * @return string La contraseña hasheada.
      */
-    function hash_password($password) {
+    function hash_password($password)
+    {
         return password_hash($password, PASSWORD_BCRYPT);
     }
 
@@ -343,8 +373,7 @@
         } elseif (!array_key_exists($status, $userStatuses)) {
             $message = 'Estado de usuario no válido.';
             $messageType = 'error';
-        }
-        else {
+        } else {
             // Verificar si el email o DUI/NIE ya existen duplicados
             try {
                 $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE email = :email OR dui = :dui OR nie = :nie");
@@ -364,7 +393,7 @@
                         ':dui' => $dui,
                         ':nie' => $nie,
                         ':name' => $name,
-                        ':last_name' => $lastName, 
+                        ':last_name' => $lastName,
                         ':email' => $email,
                         ':phone' => $phone,
                         ':password' => $hashedPassword,
@@ -415,10 +444,13 @@
 
     <header class="w-full bg-purple-700 text-white p-4 shadow-md">
         <div class="container mx-auto flex justify-between items-center">
-            <h2 class="text-2xl font-bold">Gestión de Usuarios</h2>
+            <h2 class="text-2xl font-bold">Panel de Administración</h2>
             <nav>
                 <ul class="flex space-x-4">
-                    <li><a href="/login_biblioteca/admin_dashboard.php" class="nav-link text-white hover:bg-purple-800">Inicio</a></li>
+                    <li><a href="/login_biblioteca/dashboard.php" class="nav-link text-white hover:bg-purple-800">Inicio</a></li>
+                    <li><a href="/login_biblioteca/manage_users.php" class="nav-link text-white hover:bg-purple-800">Gestión de Usuarios</a></li>
+                    <li><a href="/login_biblioteca/manage_books.php" class="nav-link text-white hover:bg-purple-800">Gestión de Libros</a></li>
+                    <li><a href="#" class="nav-link text-white hover:bg-purple-800">Reportes</a></li>
                     <li><a href="/login_biblioteca/logout.php" class="nav-link logout-button">Cerrar Sesión</a></li>
                 </ul>
             </nav>
@@ -448,67 +480,67 @@
                 <div>
                     <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
                     <input type="text" id="name" name="name" required
-                           class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500"
-                           value="<?php echo htmlspecialchars($editingUser['name'] ?? $_POST['name'] ?? ''); ?>">
+                        class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500"
+                        value="<?php echo htmlspecialchars($editingUser['name'] ?? $_POST['name'] ?? ''); ?>">
                 </div>
 
                 <div>
                     <label for="last_name" class="block text-sm font-medium text-gray-700 mb-1">Apellido</label>
                     <input type="text" id="last_name" name="last_name" required
-                           class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500"
-                           value="<?php echo htmlspecialchars($editingUser['last_name'] ?? $_POST['last_name'] ?? ''); ?>">
+                        class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500"
+                        value="<?php echo htmlspecialchars($editingUser['last_name'] ?? $_POST['last_name'] ?? ''); ?>">
                 </div>
 
                 <div>
                     <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
                     <input type="email" id="email" name="email" required
-                           class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500"
-                           placeholder="usuario@example.com"
-                           value="<?php echo htmlspecialchars($editingUser['email'] ?? $_POST['email'] ?? ''); ?>">
+                        class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="usuario@example.com"
+                        value="<?php echo htmlspecialchars($editingUser['email'] ?? $_POST['email'] ?? ''); ?>">
                 </div>
 
                 <div>
                     <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
                     <input type="text" id="phone" name="phone" required
-                           class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500"
-                           placeholder="Ej: 7123-4567"
-                           value="<?php echo htmlspecialchars($editingUser['phone'] ?? $_POST['phone'] ?? ''); ?>">
+                        class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="Ej: 7123-4567"
+                        value="<?php echo htmlspecialchars($editingUser['phone'] ?? $_POST['phone'] ?? ''); ?>">
                 </div>
 
                 <div>
                     <label for="dui" class="block text-sm font-medium text-gray-700 mb-1">Carnet de identidad CI o DUI (Opcional)</label>
                     <input type="text" id="dui" name="dui"
-                           class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500"
-                           placeholder="Ej: 12345678-9"
-                           value="<?php echo htmlspecialchars($editingUser['dui'] ?? $_POST['dui'] ?? ''); ?>">
+                        class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="Ej: 12345678-9"
+                        value="<?php echo htmlspecialchars($editingUser['dui'] ?? $_POST['dui'] ?? ''); ?>">
                 </div>
 
                 <div>
                     <label for="nie" class="block text-sm font-medium text-gray-700 mb-1">N° de identidad extranjero NIE (Opcional)</label>
                     <input type="text" id="nie" name="nie"
-                           class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500"
-                           placeholder="Ej: abcde12345"
-                           value="<?php echo htmlspecialchars($editingUser['nie'] ?? $_POST['nie'] ?? ''); ?>">
+                        class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="Ej: abcde12345"
+                        value="<?php echo htmlspecialchars($editingUser['nie'] ?? $_POST['nie'] ?? ''); ?>">
                 </div>
 
                 <div>
                     <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña <?php echo $editingUser ? '(dejar en blanco para no cambiar)' : ''; ?></label>
                     <input type="password" id="password" name="password" <?php echo $editingUser ? '' : 'required'; ?>
-                           class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500"
-                           placeholder="<?php echo $editingUser ? 'Nueva contraseña (opcional)' : 'Mínimo 6 caracteres'; ?>">
+                        class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="<?php echo $editingUser ? 'Nueva contraseña (opcional)' : 'Mínimo 6 caracteres'; ?>">
                 </div>
 
                 <div>
                     <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-1">Confirmar Contraseña <?php echo $editingUser ? '(dejar en blanco para no cambiar)' : ''; ?></label>
                     <input type="password" id="confirm_password" name="confirm_password" <?php echo $editingUser ? '' : 'required'; ?>
-                           class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500"
-                           placeholder="<?php echo $editingUser ? 'Repite nueva contraseña (opcional)' : 'Repite la contraseña'; ?>">
+                        class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="<?php echo $editingUser ? 'Repite nueva contraseña (opcional)' : 'Repite la contraseña'; ?>">
                 </div>
 
                 <div>
                     <label for="type" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Usuario</label>
                     <select id="type" name="type" required
-                            class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500">
+                        class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500">
                         <?php foreach ($userTypes as $value => $label): ?>
                             <option value="<?php echo $value; ?>"
                                 <?php
@@ -526,7 +558,7 @@
                 <div>
                     <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
                     <select id="status" name="status" required
-                            class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500">
+                        class="input-field w-full focus:ring-indigo-500 focus:border-indigo-500">
                         <?php foreach ($userStatuses as $value => $label): ?>
                             <option value="<?php echo $value; ?>"
                                 <?php
@@ -602,4 +634,5 @@
     </footer>
 
 </body>
+
 </html>

@@ -64,7 +64,7 @@
     <?php
     session_start();
 
-    
+    // Redirige al login si el usuario no está autenticado
     if (!isset($_SESSION['user_id'])) {
         header('Location: /login_biblioteca/login.php');
         exit();
@@ -76,7 +76,7 @@
     $dbUser = 'root';
     $dbPass = '';
 
-    // --- CONEXIÓN A LA BASE DE DATOS  ---
+    // --- CONEXIÓN A LA BASE DE DATOS ---
     $pdo = null;
     try {
         $pdo = new PDO("mysql:host=$dbHost;dbname=$dbName;charset=utf8mb4", $dbUser, $dbPass);
@@ -101,8 +101,8 @@
     }
 
     // Si por alguna razón el usuario no se encontró o no es administrador, redirigir
-    if (!$user || $user['type'] != 0) { 
-        header('Location: /login_biblioteca/login.php'); 
+    if (!$user || $user['type'] != 0) {
+        header('Location: /login_biblioteca/login.php');
         exit();
     }
 
@@ -116,12 +116,6 @@
         5 => 'Visitante'
     ];
     $userTypeName = $userTypes[$user['type']] ?? 'Desconocido';
-
-    // --- EJEMPLOS DE DATOS PARA EL DASHBOARD DE ADMIN (pueden venir de la DB) ---
-    $totalUsers = 150; 
-    $totalBooks = 5000; 
-    $activeLoans = 120; 
-    $pendingReservations = 25; 
     ?>
 
     <header class="w-full bg-purple-700 text-white p-4 shadow-md">
@@ -131,7 +125,7 @@
                 <ul class="flex space-x-4">
                     <li><a href="/login_biblioteca/dashboard.php" class="nav-link text-white hover:bg-purple-800">Inicio</a></li>
                     <li><a href="/login_biblioteca/manage_users.php" class="nav-link text-white hover:bg-purple-800">Gestión de Usuarios</a></li>
-                    <li><a href="#" class="nav-link text-white hover:bg-purple-800">Gestión de Libros</a></li>
+                    <li><a href="/login_biblioteca/manage_books.php" class="nav-link text-white hover:bg-purple-800">Gestión de Libros</a></li>
                     <li><a href="#" class="nav-link text-white hover:bg-purple-800">Reportes</a></li>
                     <li><a href="/login_biblioteca/logout.php" class="nav-link logout-button">Cerrar Sesión</a></li>
                 </ul>
@@ -147,19 +141,19 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div class="card text-center">
-                <p class="metric-value"><?php echo $totalUsers; ?></p>
+                <p id="total-users" class="metric-value">...</p>
                 <p class="metric-label">Usuarios Registrados</p>
             </div>
             <div class="card text-center">
-                <p class="metric-value"><?php echo $totalBooks; ?></p>
+                <p id="total-books" class="metric-value">...</p>
                 <p class="metric-label">Libros en Catálogo</p>
             </div>
             <div class="card text-center">
-                <p class="metric-value"><?php echo $activeLoans; ?></p>
+                <p id="active-loans" class="metric-value">...</p>
                 <p class="metric-label">Préstamos Activos</p>
             </div>
             <div class="card text-center">
-                <p class="metric-value"><?php echo $pendingReservations; ?></p>
+                <p id="pending-reservations" class="metric-value">...</p>
                 <p class="metric-label">Reservas Pendientes</p>
             </div>
         </div>
@@ -167,20 +161,16 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div class="card">
                 <h2 class="card-title">Actividad Reciente</h2>
-                <ul class="list-disc list-inside text-gray-700 space-y-2">
-                    <li>[2025-07-31] Juan Perez registró un nuevo usuario.</li>
-                    <li>[2025-07-30] Se añadió "El Gran Gatsby" al catálogo.</li>
-                    <li>[2025-07-29] María Gómez devolvió "1984" con retraso.</li>
+                <ul id="recent-activity" class="list-disc list-inside text-gray-700 space-y-2">
+                    <li>Cargando actividad...</li>
                 </ul>
                 <button class="mt-4 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Ver Bitácora Completa</button>
             </div>
 
             <div class="card">
                 <h2 class="card-title">Alertas Importantes</h2>
-                <ul class="list-disc list-inside text-red-600 space-y-2">
-                    <li>5 préstamos con más de 7 días de atraso.</li>
-                    <li>2 libros marcados como perdidos pendientes de revisión.</li>
-                    <li>¡Recuerda hacer la copia de seguridad semanal!</li>
+                <ul id="important-alerts" class="list-disc list-inside text-red-600 space-y-2">
+                    <li>Cargando alertas...</li>
                 </ul>
                 <button class="mt-4 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Gestionar Alertas</button>
             </div>
@@ -192,7 +182,7 @@
                 <a href="/login_biblioteca/manage_users.php" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
                     Administrar Usuarios
                 </a>
-                <a href="#" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
+                <a href="/login_biblioteca/manage_books.php" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
                     Administrar Libros
                 </a>
                 <a href="#" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
@@ -208,6 +198,9 @@
     <footer class="w-full bg-gray-800 text-white text-center p-4 mt-8">
         <p>&copy; <?php echo date('Y'); ?> Biblioteca Todos los derechos reservados.</p>
     </footer>
+
+    <!-- Incluir el script de JavaScript para manejar la interactividad -->
+    <script src="admin_dashboard.js"></script>
 
 </body>
 </html>

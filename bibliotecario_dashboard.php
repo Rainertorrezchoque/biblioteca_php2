@@ -3,537 +3,445 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard de Bibliotecario - Biblioteca</title>
-    
+    <title>Dashboard de Bibliotecario - Automatizado</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome CDN para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, query, where, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Variables globales del entorno
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : '';
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUserId = '';
+
+        // Autenticación de usuario
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUserId = user.uid;
+                // Mostrar el ID del usuario en el UI
+                const userIdDisplay = document.getElementById('user-id-display');
+                if (userIdDisplay) {
+                    userIdDisplay.textContent = `ID de Sesión: ${currentUserId}`;
+                }
+                console.log("Usuario autenticado:", currentUserId);
+                // Iniciar la escucha de datos de Firestore
+                startFirestoreListeners();
+            } else {
+                console.log("Usuario no autenticado, intentando iniciar sesión...");
+                try {
+                    if (authToken) {
+                        await signInWithCustomToken(auth, authToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                    console.log("Sesión iniciada correctamente.");
+                } catch (error) {
+                    console.error("Error al iniciar sesión:", error);
+                    showMessage(`Error de autenticación: ${error.message}`, 'error');
+                }
+            }
+        });
+
+        // Colección de préstamos (pública)
+        const loansCollectionPath = `artifacts/${appId}/public/data/loans`;
+
+        // Datos de ejemplo para la simulación inicial
+        let allLoans = [];
+
+        // Función para renderizar la tabla de préstamos
+        function renderLoansTable(loansToDisplay) {
+            const tbody = document.getElementById('loans-table-body');
+            tbody.innerHTML = '';
+            if (loansToDisplay.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-500">No hay préstamos activos.</td></tr>';
+                return;
+            }
+
+            loansToDisplay.forEach(loan => {
+                const row = document.createElement('tr');
+                row.classList.add('transition-colors', 'duration-200');
+                const returnDateClass = loan.isOverdue ? 'text-red-600 font-semibold' : 'text-gray-600';
+                row.innerHTML = `
+                    <td class="py-4 px-6">${loan.id}</td>
+                    <td class="py-4 px-6 text-gray-800">${loan.user}</td>
+                    <td class="py-4 px-6 text-gray-600">${loan.userDui}</td>
+                    <td class="py-4 px-6 text-gray-800">${loan.book}</td>
+                    <td class="py-4 px-6 text-gray-600">${loan.bookCode}</td>
+                    <td class="py-4 px-6 text-gray-600">${loan.loanDate}</td>
+                    <td class="py-4 px-6 ${returnDateClass}">${loan.returnDate}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Función para actualizar las métricas clave
+        function updateMetrics(loans) {
+            const activeLoans = loans.length;
+            const overdueLoans = loans.filter(loan => {
+                const today = new Date();
+                const returnDate = new Date(loan.returnDate);
+                return returnDate < today;
+            }).length;
+
+            document.getElementById('metric-loans').textContent = activeLoans;
+            document.getElementById('metric-overdue').textContent = overdueLoans;
+        }
+
+        // Escuchar cambios en la base de datos de Firestore
+        function startFirestoreListeners() {
+            const loansQuery = collection(db, loansCollectionPath);
+            onSnapshot(loansQuery, (snapshot) => {
+                allLoans = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                console.log("Datos de Firestore actualizados:", allLoans);
+                renderLoansTable(allLoans);
+                updateMetrics(allLoans);
+            }, (error) => {
+                console.error("Error al escuchar los cambios en Firestore:", error);
+                showMessage(`Error de base de datos: ${error.message}`, 'error');
+            });
+        }
+
+        // Función para mostrar mensajes en una caja de notificaciones
+        function showMessage(message, type) {
+            const container = document.getElementById('message-container');
+            container.innerHTML = `<div class="message-box ${type}"><i class="fas fa-info-circle mr-2"></i>${message}</div>`;
+            container.classList.remove('opacity-0');
+            container.classList.add('opacity-100');
+            setTimeout(() => {
+                container.classList.remove('opacity-100');
+                container.classList.add('opacity-0');
+            }, 5000);
+        }
+
+        // Simula la lectura de un código de barras o QR
+        window.simulateScan = function(inputFieldId) {
+            const inputField = document.getElementById(inputFieldId);
+            const dummyData = {
+                'user_dui': '08765432-1',
+                'book_copy_code': 'LIB-001-C01',
+                'return_code': 'LIB-001-C01'
+            };
+            const scannedValue = dummyData[inputFieldId] || null;
+
+            if (scannedValue) {
+                inputField.value = scannedValue;
+                if (inputFieldId === 'user_dui') {
+                    showMessage('DUI escaneado. Usuario encontrado: Ana Pérez.', 'info');
+                    document.getElementById('user-name').textContent = 'Ana Pérez';
+                    document.getElementById('checkout-step-1').classList.add('hidden');
+                    document.getElementById('checkout-step-2').classList.remove('hidden');
+                } else {
+                    showMessage('Código de ejemplar escaneado.', 'info');
+                }
+            } else {
+                showMessage('Error al simular el escaneo.', 'error');
+            }
+        };
+
+        // Lógica para registrar un nuevo préstamo
+        document.getElementById('checkout-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const userDui = document.getElementById('user_dui').value;
+            const bookCopyCode = document.getElementById('book_copy_code').value;
+            
+            if (!userDui || !bookCopyCode) {
+                showMessage('Por favor, escanea o ingresa el DUI del usuario y el código del ejemplar.', 'error');
+                return;
+            }
+
+            // Simular búsqueda de libro y usuario (en un entorno real esto sería una consulta)
+            const today = new Date().toISOString().slice(0, 10);
+            const returnDate = new Date();
+            returnDate.setDate(returnDate.getDate() + 15);
+            const returnDateString = returnDate.toISOString().slice(0, 10);
+
+            try {
+                // Añadir el documento a Firestore
+                await addDoc(collection(db, loansCollectionPath), {
+                    user: 'Ana Pérez', // Nombre simulado
+                    userDui: userDui,
+                    book: 'El Principito', // Título simulado
+                    bookCode: bookCopyCode,
+                    loanDate: today,
+                    returnDate: returnDateString,
+                    isOverdue: false,
+                    // Otros campos relevantes
+                });
+
+                showMessage('¡Préstamo registrado exitosamente!', 'success');
+                // Restablecer el formulario
+                document.getElementById('user_dui').value = '';
+                document.getElementById('book_copy_code').value = '';
+                document.getElementById('checkout-step-2').classList.add('hidden');
+                document.getElementById('checkout-step-1').classList.remove('hidden');
+
+            } catch (error) {
+                console.error("Error al registrar el préstamo:", error);
+                showMessage(`Error al registrar el préstamo: ${error.message}`, 'error');
+            }
+        });
+
+        // Lógica para registrar una devolución
+        document.getElementById('return-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const returnCode = document.getElementById('return_code').value;
+
+            if (!returnCode) {
+                showMessage('Por favor, escanea o ingresa el código del ejemplar a devolver.', 'error');
+                return;
+            }
+
+            // Buscar el préstamo activo en la base de datos
+            const loanToReturn = allLoans.find(loan => loan.bookCode === returnCode);
+
+            if (loanToReturn) {
+                try {
+                    await deleteDoc(doc(db, loansCollectionPath, loanToReturn.id));
+                    showMessage(`¡Devolución de "${loanToReturn.book}" registrada exitosamente!`, 'success');
+                    document.getElementById('return_code').value = '';
+                } catch (error) {
+                    console.error("Error al devolver el libro:", error);
+                    showMessage(`Error al devolver el libro: ${error.message}`, 'error');
+                }
+            } else {
+                showMessage(`No se encontró un préstamo activo para el código ${returnCode}.`, 'error');
+            }
+        });
+        
+        // Lógica para la búsqueda en la tabla
+        document.getElementById('search-query').addEventListener('input', function(event) {
+            const query = event.target.value.toLowerCase();
+            const filteredLoans = allLoans.filter(loan =>
+                loan.user.toLowerCase().includes(query) ||
+                loan.userDui.toLowerCase().includes(query) ||
+                loan.book.toLowerCase().includes(query) ||
+                loan.bookCode.toLowerCase().includes(query)
+            );
+            renderLoansTable(filteredLoans);
+        });
+
+        // No es necesario llamar a renderLoansTable() o updateMetrics() aquí,
+        // ya que el listener de onSnapshot lo hará automáticamente.
+    </script>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f0f2f5;
-        }
-        .container-card {
-            background-color: #ffffff;
-            border-radius: 1rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
-        }
-        .nav-link {
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            transition: background-color 0.3s ease;
-        }
-        .nav-link:hover {
-            background-color: #bfdbfe; /* Un tono más claro de azul para hover */
-        }
-        .logout-button {
-            background-color: #ef4444;
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            transition: background-color 0.3s ease;
-        }
-        .logout-button:hover {
-            background-color: #dc2626;
-        }
-        .card {
-            background-color: #f8fafc;
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            border: 1px solid #e2e8f0;
-        }
-        .card-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #1d4ed8; /* Azul oscuro */
-            margin-bottom: 1rem;
-        }
-        .metric-value {
-            font-size: 2.5rem;
-            font-weight: 800;
-            color: #3b82f6; /* Azul vibrante */
-        }
-        .metric-label {
-            font-size: 1rem;
-            color: #64748b;
-        }
-        .form-input {
-            border-radius: 0.5rem;
-            border: 1px solid #d1d5db;
-            padding: 0.75rem 1rem;
-            width: 100%;
-        }
+        /* Estilos personalizados para un mejor aspecto */
+        body { font-family: 'Inter', sans-serif; background-color: #f0f2f5; }
+        .container-card { background-color: #ffffff; border-radius: 1.5rem; box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05); }
+        .nav-link { padding: 0.75rem 1.25rem; border-radius: 0.75rem; transition: background-color 0.3s ease; }
+        .nav-link:hover { background-color: #d1d5db; color: #1f2937; }
+        .logout-button { background-color: #ef4444; color: white; padding: 0.75rem 1.5rem; border-radius: 0.75rem; font-weight: 600; transition: background-color 0.3s ease; }
+        .logout-button:hover { background-color: #dc2626; }
+        .card { background: linear-gradient(135deg, #f3f4f6, #e5e7eb); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); border: 1px solid #d1d5db; }
+        .card-title { font-size: 1.5rem; font-weight: 700; color: #1d4ed8; margin-bottom: 0.5rem; }
+        .metric-value { font-size: 3rem; font-weight: 800; color: #3b82f6; }
+        .metric-label { font-size: 1rem; color: #64748b; }
+        .form-input { border-radius: 0.75rem; border: 1px solid #d1d5db; padding: 0.75rem 1rem; width: 100%; transition: border-color 0.3s, box-shadow 0.3s; }
+        .form-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
         .action-button {
-            background-color: #22c55e; /* Verde */
+            background: linear-gradient(45deg, #10b981, #059669);
             color: white;
             padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .action-button:hover { transform: translateY(-2px); box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15); }
+        .return-button { background: linear-gradient(45deg, #f97316, #ea580c); }
+        .scan-button {
+            background: #6366f1;
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
             font-weight: 600;
             transition: background-color 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-left: 0.5rem;
         }
-        .action-button:hover {
-            background-color: #16a34a;
-        }
-        .return-button {
-            background-color: #f97316; /* Naranja */
-        }
-        .return-button:hover {
-            background-color: #ea580c;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1.5rem;
-        }
-        th, td {
-            padding: 0.75rem;
-            text-align: left;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        th {
-            background-color: #f1f5f9;
-            font-weight: 600;
-            color: #334155;
-        }
-        tr:hover {
-            background-color: #f8fafc;
+        .scan-button:hover { background-color: #4338ca; }
+        .message-box { padding: 1.25rem; margin-bottom: 1rem; border-radius: 1rem; animation: fadein 0.5s; font-weight: 600;}
+        .success { background-color: #d1fae5; color: #065f46; border: 2px solid #34d399; }
+        .error { background-color: #fee2e2; color: #991b1b; border: 2px solid #f87171; }
+        .info { background-color: #dbeafe; color: #1e40af; border: 2px solid #60a5fa; }
+        @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Estilos de tabla mejorados */
+        .table-container { border-radius: 1rem; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        th, td { text-align: left; padding: 1rem; border-bottom: 1px solid #e5e7eb; }
+        th { background-color: #e5e7eb; color: #374151; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.875rem; }
+        tr:last-child td { border-bottom: none; }
+        tbody tr:hover { background-color: #f9fafb; }
+        @media (max-width: 768px) {
+            .nav-link { padding: 0.5rem 0.75rem; }
+            .metric-value { font-size: 2rem; }
+            .metric-label { font-size: 0.875rem; }
         }
     </style>
 </head>
 <body class="flex flex-col items-center min-h-screen">
 
-    <?php
-    session_start();
-
-    
-    if (!isset($_SESSION['user_id'])) {
-        header('Location: /login_biblioteca/login.php');
-        exit();
-    }
-
-    // --- CONFIGURACIÓN DE LA BASE DE DATOS ---
-    $dbHost = 'localhost';
-    $dbName = 'biblioteca1';
-    $dbUser = 'root';
-    $dbPass = '';
-
-    // --- CONEXIÓN A LA BASE DE DATOS  ---
-    $pdo = null;
-    try {
-        $pdo = new PDO("mysql:host=$dbHost;dbname=$dbName;charset=utf8mb4", $dbUser, $dbPass);
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        die("<div class='text-center text-red-500'>Error de conexión a la base de datos: " . $e->getMessage() . "</div>");
-    }
-
-    // Obtener los datos del usuario actual para verificar su rol
-    $currentUser = null;
-    if (isset($_SESSION['user_id'])) {
-        try {
-            $stmt = $pdo->prepare("SELECT id, name, last_name, email, type, status FROM users WHERE id = :id LIMIT 1");
-            $stmt->execute([':id' => $_SESSION['user_id']]);
-            $currentUser = $stmt->fetch();
-        } catch (PDOException $e) {
-            error_log("Error al obtener datos del usuario actual en bibliotecario_dashboard: " . $e->getMessage());
-            header('Location: /login_biblioteca/login.php');
-            exit();
-        }
-    }
-
-    // Si el usuario no es bibliotecario redirigir
-    if (!$currentUser || $currentUser['type'] != 1) {
-        header('Location: /login_biblioteca/dashboard.php'); // Redirige al dashboard general
-        exit();
-    }
-
-    // --- LÓGICA DE GESTIÓN DE PRÉSTAMOS Y DEVOLUCIONES ---
-    $message = '';
-    $messageType = '';
-
-    //  (necesaria para el periodo de préstamo)
-    function get_setting($pdo, $key, $defaultValue = null) {
-        try {
-            $stmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_key = :key LIMIT 1");
-            $stmt->execute([':key' => $key]);
-            $result = $stmt->fetchColumn();
-            return $result !== false ? $result : $defaultValue;
-        } catch (PDOException $e) {
-            error_log("Error al obtener configuración '$key': " . $e->getMessage());
-            return $defaultValue;
-        }
-    }
-
-    // Manejar Préstamo de Libro
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'checkout_book') {
-        $userDui = trim($_POST['user_dui'] ?? '');
-        $bookCopyCode = trim($_POST['book_copy_code'] ?? '');
-
-        if (empty($userDui) || empty($bookCopyCode)) {
-            $message = 'Por favor, introduce el DUI del usuario y el Código Interno del Ejemplar.';
-            $messageType = 'error';
-        } else {
-            try {
-                // Encontrar al usuario por DUI
-                $stmtUser = $pdo->prepare("SELECT id FROM users WHERE dui = :dui LIMIT 1");
-                $stmtUser->execute([':dui' => $userDui]);
-                $user = $stmtUser->fetch();
-
-                if (!$user) {
-                    $message = 'Usuario no encontrado con el DUI proporcionado.';
-                    $messageType = 'error';
-                } else {
-                    // Encontrar el ejemplar del libro por Código Interno
-                    $stmtCopy = $pdo->prepare("SELECT id, book_id, status FROM copies WHERE internal_code = :code LIMIT 1");
-                    $stmtCopy->execute([':code' => $bookCopyCode]);
-                    $copy = $stmtCopy->fetch();
-
-                    if (!$copy) {
-                        $message = 'Ejemplar de libro no encontrado con el Código Interno proporcionado.';
-                        $messageType = 'error';
-                    } elseif ($copy['status'] !== 'disponible') {
-                        $message = 'El ejemplar no está disponible para préstamo (estado actual: ' . htmlspecialchars($copy['status']) . ').';
-                        $messageType = 'error';
-                    } else {
-                        // Registrar el préstamo
-                        $periodoPrestamo = (int) get_setting($pdo, 'periodo_prestamo', 14); 
-                        $fechaPrestamo = date('Y-m-d H:i:s');
-                        $fechaDevolucionEsperada = date('Y-m-d H:i:s', strtotime("+$periodoPrestamo days"));
-
-                        $pdo->beginTransaction(); // Iniciar transacción
-
-                        $stmtLoan = $pdo->prepare("INSERT INTO loans (user_id, copy_id, loan_date, expected_return_date, status)
-                                                   VALUES (:user_id, :copy_id, :loan_date, :expected_return_date, 'activo')");
-                        $loanSuccess = $stmtLoan->execute([
-                            ':user_id' => $user['id'],
-                            ':copy_id' => $copy['id'],
-                            ':loan_date' => $fechaPrestamo,
-                            ':expected_return_date' => $fechaDevolucionEsperada
-                        ]);
-
-                        //  Actualizar el estado del ejemplar a 'prestado'
-                        $stmtUpdateCopy = $pdo->prepare("UPDATE copies SET status = 'prestado' WHERE id = :id");
-                        $updateCopySuccess = $stmtUpdateCopy->execute([':id' => $copy['id']]);
-
-                        if ($loanSuccess && $updateCopySuccess) {
-                            $pdo->commit(); 
-                            $message = '¡Préstamo registrado exitosamente!';
-                            $messageType = 'success';
-                            // Limpiar
-                            $_POST['user_dui'] = '';
-                            $_POST['book_copy_code'] = '';
-                        } else {
-                            $pdo->rollBack(); 
-                            $message = 'Error al registrar el préstamo o actualizar el ejemplar.';
-                            $messageType = 'error';
-                        }
-                    }
-                }
-            } catch (PDOException $e) {
-                $pdo->rollBack();
-                error_log("Error al procesar préstamo: " . $e->getMessage());
-                $message = 'Error en la base de datos al registrar el préstamo. Inténtalo de nuevo.';
-                $messageType = 'error';
-            }
-        }
-    }
-
-    // Manejar Devolución de Libro
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'return_book') {
-        $loanId = $_POST['loan_id'] ?? null;
-
-        if (!$loanId || !is_numeric($loanId)) {
-            $message = 'ID de préstamo no válido.';
-            $messageType = 'error';
-        } else {
-            try {
-                // Obtener detalles del préstamo
-                $stmtLoan = $pdo->prepare("SELECT id, copy_id, expected_return_date FROM loans WHERE id = :id AND status = 'activo' LIMIT 1");
-                $stmtLoan->execute([':id' => $loanId]);
-                $loan = $stmtLoan->fetch();
-
-                if (!$loan) {
-                    $message = 'Préstamo no encontrado o ya no está activo.';
-                    $messageType = 'error';
-                } else {
-                    $pdo->beginTransaction(); // Iniciar transacción
-
-                    $fechaDevolucionReal = date('Y-m-d H:i:s');
-                    $multa = 0.00;
-
-                    // Calcular multa si hay atraso
-                    $expectedDate = new DateTime($loan['expected_return_date']);
-                    $actualDate = new DateTime($fechaDevolucionReal);
-                    if ($actualDate > $expectedDate) {
-                        $interval = $actualDate->diff($expectedDate);
-                        $diasAtraso = $interval->days;
-                        $multaPorDia = (float) get_setting($pdo, 'multa_atraso', 0.25);
-                        $multa = $diasAtraso * $multaPorDia;
-                    }
-
-                    // Actualizar el préstamo a 'completado' y registrar fecha de devolución real y multa
-                    $stmtUpdateLoan = $pdo->prepare("UPDATE loans SET fecha_devolucion_real = :return_date, multa = :multa, status = 'completado' WHERE id = :id");
-                    $updateLoanSuccess = $stmtUpdateLoan->execute([
-                        ':return_date' => $fechaDevolucionReal,
-                        ':multa' => $multa,
-                        ':id' => $loanId
-                    ]);
-
-                    // Actualizar el estado del ejemplar a 'disponible'
-                    $stmtUpdateCopy = $pdo->prepare("UPDATE copies SET status = 'disponible' WHERE id = :id");
-                    $updateCopySuccess = $stmtUpdateCopy->execute([':id' => $loan['copy_id']]);
-
-                    if ($updateLoanSuccess && $updateCopySuccess) {
-                        $pdo->commit(); 
-                        $message = '¡Devolución registrada exitosamente!';
-                        if ($multa > 0) {
-                            $message .= " Multa aplicada: $" . number_format($multa, 2);
-                        }
-                        $messageType = 'success';
-                    } else {
-                        $pdo->rollBack(); // Revertir la transacción
-                        $message = 'Error al registrar la devolución o actualizar el ejemplar.';
-                        $messageType = 'error';
-                    }
-                }
-            } catch (PDOException $e) {
-                $pdo->rollBack();
-                error_log("Error al procesar devolución: " . $e->getMessage());
-                $message = 'Error en la base de datos al registrar la devolución. Inténtalo de nuevo.';
-                $messageType = 'error';
-            }
-        }
-        // Redirigir para limpiar la URL
-        header('Location: /login_biblioteca/bibliotecario_dashboard.php?msg=' . urlencode($message) . '&type=' . $messageType);
-        exit();
-    }
-
-    // (después de redirecciones)
-    if (isset($_GET['msg']) && isset($_GET['type'])) {
-        $message = htmlspecialchars($_GET['msg']);
-        $messageType = htmlspecialchars($_GET['type']);
-    }
-
-    // --- OBTENER DATOS PARA EL DASHBOARD ---
-    $activeLoans = [];
-    $overdueLoans = [];
-    $recentActivity = [];
-    $totalUsersCount = 0; // Inicializar la variable
-
-    try {
-        // Préstamos Activos
-        $stmtActiveLoans = $pdo->query("
-            SELECT
-                l.id AS loan_id,
-                u.name AS user_name,
-                u.last_name AS user_last_name,
-                u.dui AS user_dui,
-                c.internal_code AS copy_code,
-                b.title AS book_title,
-                l.loan_date,
-                l.expected_return_date
-            FROM loans l
-            JOIN users u ON l.user_id = u.id
-            JOIN copies c ON l.copy_id = c.id
-            JOIN books b ON c.book_id = b.id
-            WHERE l.status = 'activo'
-            ORDER BY l.expected_return_date ASC
-        ");
-        $activeLoans = $stmtActiveLoans->fetchAll();
-
-        // Préstamos Atrasados (filtrar los activos que ya pasaron la fecha esperada)
-        foreach ($activeLoans as $loan) {
-            $expectedDate = new DateTime($loan['expected_return_date']);
-            $currentDate = new DateTime();
-            if ($currentDate > $expectedDate) {
-                $overdueLoans[] = $loan;
-            }
-        }
-
-        // Actividad Reciente (últimos 5 préstamos/devoluciones completadas)
-        $stmtRecentActivity = $pdo->query("
-            SELECT
-                l.id AS loan_id,
-                u.name AS user_name,
-                u.last_name AS user_last_name,
-                b.title AS book_title,
-                l.loan_date,
-                l.fecha_devolucion_real,
-                l.status
-            FROM loans l
-            JOIN users u ON l.user_id = u.id
-            JOIN copies c ON l.copy_id = c.id
-            JOIN books b ON c.book_id = b.id
-            WHERE l.status IN ('activo', 'completado', 'atrasado') -- Incluir activos para ver todos los recientes
-            ORDER BY l.loan_date DESC
-            LIMIT 5
-        ");
-        $recentActivity = $stmtRecentActivity->fetchAll();
-
-        // Obtener el total de usuarios registrados
-        $stmtTotalUsers = $pdo->query("SELECT COUNT(id) FROM users");
-        $totalUsersCount = $stmtTotalUsers->fetchColumn();
-
-    } catch (PDOException $e) {
-        error_log("Error al obtener datos del dashboard de bibliotecario: " . $e->getMessage());
-        $message = 'Error al cargar datos del dashboard.';
-        $messageType = 'error';
-    }
-    ?>
-
+    <!-- Header -->
     <header class="w-full bg-blue-700 text-white p-4 shadow-md">
-        <div class="container mx-auto flex justify-between items-center">
-            <h2 class="text-2xl font-bold">Panel de Bibliotecario</h2>
+        <div class="container mx-auto flex flex-col md:flex-row justify-between items-center">
+            <h2 class="text-3xl font-extrabold mb-2 md:mb-0">Panel de Bibliotecario</h2>
             <nav>
-                <ul class="flex space-x-4">
-                    <li><a href="/login_biblioteca/dashboard.php" class="nav-link text-white hover:bg-blue-800">Inicio</a></li>
+                <ul class="flex space-x-2 md:space-x-4">
+                    <li><a href="#" class="nav-link text-white hover:bg-blue-800">Inicio</a></li>
                     <li><a href="#" class="nav-link text-white hover:bg-blue-800">Gestión de Libros</a></li>
-                    <li><a href="#" class="nav-link text-white hover:bg-blue-800">Reportes de Préstamos</a></li>
-                    <li><a href="/login_biblioteca/logout.php" class="nav-link logout-button">Cerrar Sesión</a></li>
+                    <li><a href="#" class="nav-link text-white hover:bg-blue-800">Usuarios</a></li>
+                    <li><button class="nav-link logout-button flex items-center">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Cerrar Sesión
+                    </button></li>
                 </ul>
             </nav>
         </div>
     </header>
 
-    <main class="container mx-auto mt-8 p-8 w-full max-w-6xl container-card">
-        <h1 class="text-4xl font-extrabold text-gray-900 mb-6 text-center">
-            ¡Bienvenido, Bibliotecario <span class="text-blue-700"><?php echo htmlspecialchars($currentUser['name']); ?></span>!
+    <!-- Main Content -->
+    <main class="container mx-auto mt-8 p-6 w-full max-w-7xl container-card">
+        <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 text-center leading-tight">
+            ¡Bienvenido, <span class="text-blue-700">Javier</span>!
         </h1>
-        <p class="text-center text-gray-600 mb-8">Aquí puedes gestionar los préstamos y devoluciones de la biblioteca.</p>
+        <p class="text-center text-gray-600 mb-8 max-w-xl mx-auto">
+            Utiliza este panel para gestionar préstamos y devoluciones.
+        </p>
+        <p id="user-id-display" class="text-center text-gray-400 text-sm mb-4"></p>
 
+        <!-- Mensajes del sistema -->
+        <div id="message-container" class="opacity-0 transition-opacity duration-500">
+            <!-- Los mensajes se mostrarán aquí -->
+        </div>
 
-
-        <!-- Métricas Clave -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Métricas Clave (Valores actualizados dinámicamente) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
             <div class="card text-center">
-                <p class="metric-value"><?php echo count($activeLoans); ?></p>
+                <p id="metric-loans" class="metric-value">0</p>
                 <p class="metric-label">Préstamos Activos</p>
             </div>
             <div class="card text-center">
-                <p class="metric-value text-red-600"><?php echo count($overdueLoans); ?></p>
+                <p id="metric-overdue" class="metric-value text-red-600">0</p>
                 <p class="metric-label">Préstamos Atrasados</p>
             </div>
             <div class="card text-center">
-                <p class="metric-value"><?php echo $totalUsersCount; ?></p>
+                <p id="metric-users" class="metric-value">0</p>
                 <p class="metric-label">Usuarios Registrados</p>
             </div>
         </div>
 
-        <!-- Sección de Préstamo de Libro -->
-        <div class="mb-8 p-6 border border-gray-200 rounded-lg bg-blue-50">
-            <h2 class="text-2xl font-semibold text-blue-700 mb-4">Registrar Nuevo Préstamo</h2>
-            <form action="bibliotecario_dashboard.php" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="hidden" name="action" value="checkout_book">
-                <div>
-                    <label for="user_dui" class="block text-sm font-medium text-gray-700 mb-1">Carnert de identidad CI o DUI del Usuario</label>
-                    <input type="text" id="user_dui" name="user_dui" required
-                           class="form-input focus:ring-blue-500 focus:border-blue-500"
-                           placeholder="Ej: 12345678-9"
-                           value="<?php echo htmlspecialchars($_POST['user_dui'] ?? ''); ?>">
-                </div>
-                <div>
-                    <label for="book_copy_code" class="block text-sm font-medium text-gray-700 mb-1">Código Interno del Ejemplar</label>
-                    <input type="text" id="book_copy_code" name="book_copy_code" required
-                           class="form-input focus:ring-blue-500 focus:border-blue-500"
-                           placeholder="Ej: LIB-001-C01"
-                           value="<?php echo htmlspecialchars($_POST['book_copy_code'] ?? ''); ?>">
-                </div>
-                <div class="md:col-span-2 text-right">
-                    <button type="submit" class="action-button">
-                        Prestar Libro
+        <!-- Sección de Préstamo de Libro con flujo guiado -->
+        <div class="mb-12 p-8 border border-gray-200 rounded-2xl bg-blue-50">
+            <h2 class="text-2xl font-bold text-blue-700 mb-6 flex items-center">
+                <i class="fas fa-hand-holding-usd mr-3"></i> Registrar Nuevo Préstamo
+            </h2>
+            <div id="checkout-step-1" class="mb-6">
+                <label for="user_dui" class="block text-sm font-medium text-gray-700 mb-2">Paso 1: DUI del Usuario</label>
+                <div class="flex items-center">
+                    <input type="text" id="user_dui" name="user_dui" required class="form-input flex-grow" placeholder="Ej: 12345678-9">
+                    <button type="button" class="scan-button" onclick="simulateScan('user_dui')">
+                        <i class="fas fa-barcode"></i>
                     </button>
                 </div>
-            </form>
+            </div>
+            <div id="checkout-step-2" class="hidden">
+                <div id="user-info" class="p-4 bg-blue-200 rounded-lg mb-4">
+                    <p class="text-blue-800 font-semibold"><i class="fas fa-user-circle mr-2"></i> Usuario: <span id="user-name"></span></p>
+                </div>
+                <label for="book_copy_code" class="block text-sm font-medium text-gray-700 mb-2">Paso 2: Código del Ejemplar</label>
+                <form id="checkout-form">
+                    <div class="flex items-center">
+                        <input type="text" id="book_copy_code" name="book_copy_code" required class="form-input flex-grow" placeholder="Ej: LIB-001-C01">
+                        <button type="button" class="scan-button" onclick="simulateScan('book_copy_code')">
+                            <i class="fas fa-qrcode"></i>
+                        </button>
+                    </div>
+                    <div class="mt-6 text-right">
+                        <button type="submit" class="action-button">
+                            <i class="fas fa-check-circle mr-2"></i> Confirmar Préstamo
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
 
         <!-- Sección de Devolución de Libro -->
-        <div class="mb-8 p-6 border border-gray-200 rounded-lg bg-orange-50">
-            <h2 class="text-2xl font-semibold text-orange-700 mb-4">Registrar Devolución</h2>
-            <form action="bibliotecario_dashboard.php" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="hidden" name="action" value="return_book">
-                <div>
-                    <label for="loan_id" class="block text-sm font-medium text-gray-700 mb-1">ID del Préstamo a Devolver</label>
-                    <input type="number" id="loan_id" name="loan_id" required
-                           class="form-input focus:ring-orange-500 focus:border-orange-500"
-                           placeholder="Ej: 123">
+        <div class="mb-12 p-8 border border-gray-200 rounded-2xl bg-orange-50">
+            <h2 class="text-2xl font-bold text-orange-700 mb-6 flex items-center">
+                <i class="fas fa-exchange-alt mr-3"></i> Registrar Devolución
+            </h2>
+            <form id="return-form">
+                <label for="return_code" class="block text-sm font-medium text-gray-700 mb-2">Código del Ejemplar</label>
+                <div class="flex items-center mb-6">
+                    <input type="text" id="return_code" name="return_code" required class="form-input flex-grow" placeholder="Ej: LIB-001-C01">
+                    <button type="button" class="scan-button" onclick="simulateScan('return_code')">
+                        <i class="fas fa-barcode"></i>
+                    </button>
                 </div>
-                <div class="md:col-span-2 text-right">
+                <div class="text-right">
                     <button type="submit" class="action-button return-button">
-                        Devolver Libro
+                        <i class="fas fa-undo-alt mr-2"></i> Confirmar Devolución
                     </button>
                 </div>
             </form>
         </div>
 
-        <!-- Sección de Préstamos Activos -->
-        <div class="p-6 border border-gray-200 rounded-lg bg-white mb-8">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Préstamos Activos</h2>
-            <?php if (empty($activeLoans)): ?>
-                <p class="text-gray-600 text-center">No hay préstamos activos actualmente.</p>
-            <?php else: ?>
-                <div class="overflow-x-auto">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ID Préstamo</th>
-                                <th>Usuario</th>
-                                <th>DUI Usuario</th>
-                                <th>Libro</th>
-                                <th>Cód. Ejemplar</th>
-                                <th>Fecha Préstamo</th>
-                                <th>Fecha Esperada</th>
-                                <th>Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($activeLoans as $loan): ?>
-                                <tr class="<?php echo (new DateTime() > new DateTime($loan['expected_return_date'])) ? 'bg-red-100' : ''; ?>">
-                                    <td><?php echo htmlspecialchars($loan['loan_id']); ?></td>
-                                    <td><?php echo htmlspecialchars($loan['user_name'] . ' ' . $loan['user_last_name']); ?></td>
-                                    <td><?php echo htmlspecialchars($loan['user_dui']); ?></td>
-                                    <td><?php echo htmlspecialchars($loan['book_title']); ?></td>
-                                    <td><?php echo htmlspecialchars($loan['copy_code']); ?></td>
-                                    <td><?php echo htmlspecialchars(date('d/m/Y', strtotime($loan['loan_date']))); ?></td>
-                                    <td><?php echo htmlspecialchars(date('d/m/Y', strtotime($loan['expected_return_date']))); ?></td>
-                                    <td><?php echo (new DateTime() > new DateTime($loan['expected_return_date'])) ? '<span class="text-red-600 font-semibold">Atrasado</span>' : 'Activo'; ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
+        <!-- Sección de Búsqueda -->
+        <div class="mb-12 p-8 border border-gray-200 rounded-2xl bg-white">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-search mr-3"></i> Buscar Libros o Miembros
+            </h2>
+            <div class="flex flex-col md:flex-row gap-4">
+                <input type="text" id="search-query" class="form-input" placeholder="Buscar por título, autor, o nombre del miembro...">
+                <button type="button" class="action-button bg-gray-500 hover:bg-gray-700 md:w-auto" onclick="window.simulateSearch()">
+                    <i class="fas fa-search mr-2"></i> Buscar
+                </button>
+            </div>
         </div>
 
-        <!-- Sección de Actividad Reciente -->
-        <div class="p-6 border border-gray-200 rounded-lg bg-white">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Actividad Reciente</h2>
-            <?php if (empty($recentActivity)): ?>
-                <p class="text-gray-600 text-center">No hay actividad reciente.</p>
-            <?php else: ?>
-                <ul class="list-disc list-inside text-gray-700 space-y-2">
-                    <?php foreach ($recentActivity as $activity): ?>
-                        <li>
-                            [<?php echo htmlspecialchars(date('d/m/Y', strtotime($activity['loan_date']))); ?>]
-                            <?php echo htmlspecialchars($activity['user_name'] . ' ' . $activity['user_last_name']); ?>
-                            <?php
-                                if ($activity['status'] == 'completado') {
-                                    echo 'devolvió el libro "' . htmlspecialchars($activity['book_title']) . '".';
-                                } elseif ($activity['status'] == 'activo') {
-                                    echo 'prestó el libro "' . htmlspecialchars($activity['book_title']) . '".';
-                                } elseif ($activity['status'] == 'atrasado') {
-                                    echo 'tiene el libro "' . htmlspecialchars($activity['book_title']) . '" atrasado.';
-                                }
-                            ?>
-                        </li>
-                    <?php endforeach; ?>
-                </ul>
-            <?php endif; ?>
+        <!-- Sección de Préstamos Activos (Tabla dinámica) -->
+        <div class="p-8 border border-gray-200 rounded-2xl bg-white">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-book-reader mr-3"></i> Préstamos Activos
+            </h2>
+            <div id="loans-table-container" class="overflow-x-auto table-container">
+                <table class="min-w-full">
+                    <thead>
+                        <tr>
+                            <th class="py-3 px-6">ID Préstamo</th>
+                            <th class="py-3 px-6">Usuario</th>
+                            <th class="py-3 px-6">DUI Usuario</th>
+                            <th class="py-3 px-6">Libro</th>
+                            <th class="py-3 px-6">Cód. Ejemplar</th>
+                            <th class="py-3 px-6">Fecha Préstamo</th>
+                            <th class="py-3 px-6">Fecha Esperada</th>
+                        </tr>
+                    </thead>
+                    <tbody id="loans-table-body">
+                        <!-- Las filas se llenarán con JavaScript -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </main>
 
+    <!-- Footer -->
     <footer class="w-full bg-gray-800 text-white text-center p-4 mt-8">
-        <p>&copy; <?php echo date('Y'); ?> Biblioteca Todos los derechos reservados.</p>
+        <p>&copy; 2025 Biblioteca Automatizada. Todos los derechos reservados.</p>
     </footer>
-
 </body>
 </html>
